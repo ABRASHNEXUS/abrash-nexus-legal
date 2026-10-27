@@ -1,0 +1,17 @@
+
+name: ABRASH NEXUS Automation
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test cloud scheduler
+        run: |
+          echo "ABRASH NEXUS scheduler is running."
+          echo "Next: configure secure Facebook access."
+          echo "AI videos and trend monitoring are not enabled yet."
