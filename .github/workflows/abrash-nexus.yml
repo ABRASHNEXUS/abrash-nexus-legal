@@ -3,19 +3,17 @@ name: ABRASH NEXUS Automation
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 10 * * *"
 
 jobs:
-  test:
+  post-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Facebook Page connection
+      - name: Publish one test post
         env:
           FACEBOOK_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
         run: |
           if [ -z "$FACEBOOK_TOKEN" ]; then
-            echo "Facebook secret is missing."
+            echo "Facebook token is missing."
             exit 1
           fi
 
@@ -24,11 +22,27 @@ jobs:
             --data-urlencode "fields=id,name" \
             --data-urlencode "access_token=$FACEBOOK_TOKEN")
 
-          if echo "$RESPONSE" | grep -q '"error"'; then
-            echo "Facebook connection failed. Check the token and permissions."
+          PAGE_ID=$(echo "$RESPONSE" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("id",""))')
+          PAGE_NAME=$(echo "$RESPONSE" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("name",""))')
+
+          if [ "$PAGE_ID" != "1862674664032237" ] || [ "$PAGE_NAME" != "Oluniyi Adio Abrash" ]; then
+            echo "Stopped: token does not match the expected Facebook Page."
             exit 1
           fi
 
-          echo "Facebook connection test completed."
-          echo "$RESPONSE" | python3 -c \
-            'import json,sys; d=json.load(sys.stdin); print("Page name:", d.get("name", "Unknown")); print("Page ID:", d.get("id", "Unknown"))'
+          POST_RESPONSE=$(curl -sS -X POST \
+            "https://graph.facebook.com/v26.0/$PAGE_ID/feed" \
+            --data-urlencode "message=ABRASH NEXUS test post: My Facebook automation setup is working!" \
+            --data-urlencode "access_token=$FACEBOOK_TOKEN")
+
+          echo "$POST_RESPONSE" | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          if "error" in d:
+              print("Posting failed:", d["error"].get("message", "Unknown error"))
+              sys.exit(1)
+          print("Test post published successfully.")
+          print("Post ID:", d.get("id", "not returned"))
+          '
