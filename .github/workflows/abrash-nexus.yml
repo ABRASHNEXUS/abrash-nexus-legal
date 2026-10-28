@@ -2,16 +2,33 @@
 name: ABRASH NEXUS Automation
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 10 * * *"
-  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test cloud scheduler
+      - name: Test Facebook Page connection
+        env:
+          FACEBOOK_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
         run: |
-          echo "ABRASH NEXUS scheduler is running."
-          echo "Next: configure secure Facebook access."
-          echo "AI videos and trend monitoring are not enabled yet."
+          if [ -z "$FACEBOOK_TOKEN" ]; then
+            echo "Facebook secret is missing."
+            exit 1
+          fi
+
+          RESPONSE=$(curl -sS -G \
+            "https://graph.facebook.com/v26.0/me" \
+            --data-urlencode "fields=id,name" \
+            --data-urlencode "access_token=$FACEBOOK_TOKEN")
+
+          if echo "$RESPONSE" | grep -q '"error"'; then
+            echo "Facebook connection failed. Check the token and permissions."
+            exit 1
+          fi
+
+          echo "Facebook connection test completed."
+          echo "$RESPONSE" | python3 -c \
+            'import json,sys; d=json.load(sys.stdin); print("Page name:", d.get("name", "Unknown")); print("Page ID:", d.get("id", "Unknown"))'
